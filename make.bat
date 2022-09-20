@@ -1,0 +1,2 @@
+escript compile_all
+pause
