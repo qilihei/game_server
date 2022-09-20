@@ -4,8 +4,8 @@
 
 -export([
          start_link/2,
-         create/2,
          create/1,
+         create/2,
          fetch/1,
          replace/2,
          delete/1
@@ -23,7 +23,7 @@ start_link(Value, LeaseTime) ->
     gen_server:start_link(?MODULE, [Value, LeaseTime], []).
 
 create(Value, LeaseTime) ->
-    sc_sup:start_child(Value, LeaseTime).
+    sc_element_sup:start_child(Value, LeaseTime).
 
 create(Value) ->
     create(Value, ?DEFAULT_LEASE_TIME).
