@@ -1,4 +1,5 @@
 -module(sc_event).
+-include("common.hrl").
 
 -export([start_link/0,
          add_handler/2,
@@ -11,12 +12,15 @@
 -define(SERVER, ?MODULE).
 
 start_link() ->
+    ?PRINT("sc_event- ----------------- start_link ~n",[]),
     gen_event:start_link({local, ?SERVER}).
 
 add_handler(Handler, Args) ->
+    ?PRINT("add_handler- ----------------- Handler = ~w, Args = ~w~n",[Handler, Args]),
     gen_event:add_handler(?SERVER, Handler, Args).
 
 delete_handler(Handler, Args) ->
+    ?PRINT("delete_handler- ----------------- Handler = ~w, Args = ~w~n",[Handler, Args]),
     gen_event:delete_handler(?SERVER, Handler, Args).
 
 lookup(Key) ->

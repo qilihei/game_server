@@ -2,6 +2,8 @@
 
 -behaviour(gen_server).
 
+-include("common.hrl").
+
 -export([
          start_link/2,
          create/1,
@@ -20,12 +22,14 @@
 -record(state, {value, lease_time, start_time}).
 
 start_link(Value, LeaseTime) ->
+    ?PRINT("sc_element start_link ---------- Value = ~w, LeaseTime = ~w~n",[Value, LeaseTime]),
     gen_server:start_link(?MODULE, [Value, LeaseTime], []).
 
 create(Value, LeaseTime) ->
     sc_element_sup:start_child(Value, LeaseTime).
 
 create(Value) ->
+    sc_event_logger:add_handler(),
     create(Value, ?DEFAULT_LEASE_TIME).
 
 fetch(Pid) ->
@@ -38,6 +42,7 @@ delete(Pid) ->
     gen_server:cast(Pid, delete).
 
 init([Value, LeaseTime]) ->
+    ?PRINT("sc_element init~n", []),
     Now = calendar:local_time(),
     StartTime = calendar:datetime_to_gregorian_seconds(Now),
     {ok,

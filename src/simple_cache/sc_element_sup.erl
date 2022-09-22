@@ -2,6 +2,8 @@
 
 -behaviour(supervisor).
 
+-include("common.hrl").
+
 -export([start_link/0,
          start_child/2
         ]).
@@ -14,9 +16,11 @@ start_link() ->
     supervisor:start_link({local, ?SERVER}, ?MODULE, []).
 
 start_child(Value, LeaseTime) ->
+    ?PRINT("start_child ------------- Value = ~w, LeaseTime = ~w~n",[Value, LeaseTime]),
     supervisor:start_child(?SERVER, [Value, LeaseTime]).
 
 init([]) ->
+    ?PRINT("sc_element_sup ------------ init~n",[]),
     Element = {sc_element, {sc_element, start_link, []},
                temporary, brutal_kill, worker, [sc_element]},
     Children = [Element],

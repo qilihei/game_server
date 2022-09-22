@@ -7,10 +7,13 @@
 
 %% Supervisor callbacks
 -export([init/1]).
+-include("common.hrl").
 
 -define(SERVER, ?MODULE).
 
 start_link() ->
+    ?PRINT("sc_sup ---------- start_link ~n",[]),
+    sc_store:init(),
     supervisor:start_link({local, ?SERVER}, ?MODULE, []).
 
 init([]) ->

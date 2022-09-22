@@ -2,6 +2,8 @@
 
 -behaviour(gen_event).
 
+-include("common.hrl").
+
 -export([add_handler/0, delete_handler/0]).
 
 -export([init/1, handle_event/2, handle_call/2,
@@ -16,6 +18,7 @@ delete_handler() ->
     sc_event:delete_handler(?MODULE, []).
 
 init([]) ->
+    ?PRINT("sc_event_logger ------------ init",[]),
     {ok, #state{}}.
 
 handle_event({create, {Key, Value}}, State) ->
