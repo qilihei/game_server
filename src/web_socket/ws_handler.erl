@@ -24,8 +24,9 @@
 init(Req, _Opts) ->
     ?PRINT("Req = ~w~n",[Req]),
     Peer = maps:get(peer, Req),
-    ?PRINT("new client connect ip:~p", [Peer]),
+    ?PRINT("new client connect ip:~p~n", [Peer]),
     Ref = maps:get(ref, Req),
+    ?PRINT("Ref = ~w~n",[Ref]),
 %%  ?log("ws info:~p", [PortType]),
     {cowboy_websocket, Req, #ws_state{host=Peer}}.
 
@@ -74,18 +75,19 @@ websocket_info(_Info, State) ->
     ?PRINT("unknow msg : ~p", [_Info]),
     {[], State}.
 
-terminate(_Reason, _Req, #ws_state{uid=Name, agent_pid = Pid, heroid = HeroId, port_type = gamePort}) ->
-    case Name =/= [] of
-        true ->
-            ets:delete(online, Name);
-        _ ->
-%%      ?log_error("ets delete online error uid:~p, host:~p~n", [UId, Host])
-            skip
-    end,
-    handle_stop(gamePort,Pid),
-    ok;
-terminate(_Reason, _Req, #ws_state{agent_pid = Pid, heroid=HeroId, port_type = PortType}) ->
-    handle_stop(PortType,Pid),
+%%terminate(_Reason, _Req, State) ->
+%%    case Name =/= [] of
+%%        true ->
+%%            ets:delete(online, Name);
+%%        _ ->
+%%%%      ?log_error("ets delete online error uid:~p, host:~p~n", [UId, Host])
+%%            skip
+%%    end,
+%%    handle_stop(gamePort,Pid),
+%%    ok;
+terminate(_Reason, _Req, _State) ->
+    ?PRINT("_Reason = ~w, _Req = ~w, _State = ~w~n",[_Reason, _Req, _State]),
+%%    handle_stop(PortType,Pid),
     ok.
 %%send(Frames, State) ->
 %%  cowboy_websocket:websocket_send(Frames, State).

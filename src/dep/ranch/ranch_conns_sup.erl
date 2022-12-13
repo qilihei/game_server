@@ -131,9 +131,11 @@ loop(State=#state{parent=Parent, ref=Ref, id=Id, conn_type=ConnType,
 			io:format("self = ~w, Protocol = ~w , To = ~w, Socket = ~w~n",[self(),Protocol, To, Socket]),
 			try Protocol:start_link(Ref, Transport, Opts) of
 				{ok, Pid} ->
+					io:format("ranch_conns_sup loop --- 11111111111111 ~n",[]),
 					inc_accept(StatsCounters, Id, 1),
 					handshake(State, CurConns, NbChildren, Sleepers, To, Socket, Pid, Pid);
 				{ok, SupPid, ProtocolPid} when ConnType =:= supervisor ->
+					io:format("ranch_conns_sup loop --- 2222222222222222 ~n",[]),
 					inc_accept(StatsCounters, Id, 1),
 					handshake(State, CurConns, NbChildren, Sleepers, To, Socket, SupPid, ProtocolPid);
 				Ret ->
@@ -258,6 +260,7 @@ loop(State=#state{parent=Parent, ref=Ref, id=Id, conn_type=ConnType,
 
 handshake(State=#state{ref=Ref, transport=Transport, handshake_timeout=HandshakeTimeout,
 		max_conns=MaxConns, alarms=Alarms0}, CurConns, NbChildren, Sleepers, To, Socket, SupPid, ProtocolPid) ->
+	io:format("~w[Lin:~w] Ref = ~w~n Transport = ~w, Socket = ~w~n",[?MODULE,?LINE, Ref, Transport, Socket]),
 	case Transport:controlling_process(Socket, ProtocolPid) of
 		ok ->
 			ProtocolPid ! {handshake, Ref, Transport, Socket, HandshakeTimeout},

@@ -287,7 +287,9 @@ handshake(Ref, Opts) ->
 
 handshake1(Ref, Opts) ->
 	receive {handshake, Ref, Transport, CSocket, Timeout} ->
+		io:format("~w[Lin:~w] Ref = ~w~n Transport = ~w, CSocket = ~w Opts = ~w~n",[?MODULE,?LINE, Ref, Transport, CSocket, Opts]),
 		Handshake = handshake_transport(Transport, handshake, CSocket, Opts, Timeout),
+		io:format("~w[Lin:~w] Handshake = ~w~n",[?MODULE,?LINE, Handshake]),
 		handshake_result(Handshake, Ref, Transport, CSocket, Timeout)
 	end.
 
