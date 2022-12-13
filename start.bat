@@ -8,4 +8,5 @@ set ETS_TABLES_MAX=100000
 
 set ATOM_MAX=1000000
 
-erl -pa ../ebin -pa ../app -name  game_002@192.168.0.96 -boot start_sasl -smp auto +K true +P 1000000   -setcookie ct12 -s main start
+
+"C:\Program Files\erl10.7\bin\werl" -pa ../ebin -pa ../app -name  game_001@192.168.0.96 -boot start_sasl -smp auto +K true +P 1000000   -setcookie ct12 -s main start

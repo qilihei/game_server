@@ -1,5 +1,6 @@
 #!/usr/local/bin/escript
 
+
 main(_) ->
 	case make:all() of
 		error -> halt(1);

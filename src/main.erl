@@ -3,9 +3,9 @@
 
 -include("common.hrl").
 -define(APP, game).
--define(APPS, [kernel, stdlib, sasl,inets,ssl,?APP]).
+-define(APPS, [kernel, stdlib, sasl,inets,ssl,crypto, ranch, cowlib, cowboy, ?APP]).
 
--define(STOP_APPS, [stdlib, sasl,inets,ssl, ?APP]).
+-define(STOP_APPS, [stdlib, sasl,inets,ssl, crypto, ranch,  cowlib, cowboy, ?APP]).
 
 %% @doc 启动游戏
 start() ->
@@ -18,6 +18,7 @@ start_apps([App | T]) ->
     ?PRINT("----------------- App  ~wStart~n",[App]),
     application:ensure_all_started(App),
     ?PRINT("----------------- App  ~w Start finish~n",[App]),
+
     start_apps(T).
 
 %% @doc 结束游戏
