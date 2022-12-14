@@ -191,6 +191,7 @@ init(Parent, Ref, Socket, Transport, ProxyHeader, Opts) ->
 	end.
 
 setopts_active(#state{socket=Socket, transport=Transport, opts=Opts}) ->
+%%	io:format("~w Line ~w Socket = ~w, Transport = ~w, Opts = ~w~n",[?MODULE, ?LINE, Socket, Transport, Opts]),
 	N = maps:get(active_n, Opts, 100),
 	Transport:setopts(Socket, [{active, N}]).
 
@@ -217,8 +218,10 @@ flush_passive(Socket, Messages) ->
 loop(State=#state{parent=Parent, socket=Socket, transport=Transport, opts=Opts,
 		buffer=Buffer, timer=TimerRef, children=Children, in_streamid=InStreamID,
 		last_streamid=LastStreamID}) ->
+%%	io:format("~w Line ~w Socket = ~w, Transport = ~w, Opts = ~w, Buffer = ~w, Children = ~w, InStreamID = ~w, LastStreamID = ~w~n",[?MODULE, ?LINE,Socket, Transport, Opts, Buffer, Children, InStreamID, LastStreamID]),
 	Messages = Transport:messages(),
 	InactivityTimeout = maps:get(inactivity_timeout, Opts, 300000),
+%%	io:format("~w Line ~wMessages = ~w, InactivityTimeout = ~w~n",[?MODULE, ?LINE,Messages, InactivityTimeout]),
 	receive
 		%% Discard data coming in after the last request
 		%% we want to process was received fully.
@@ -226,6 +229,7 @@ loop(State=#state{parent=Parent, socket=Socket, transport=Transport, opts=Opts,
 			loop(State);
 		%% Socket messages.
 		{OK, Socket, Data} when OK =:= element(1, Messages) ->
+			io:format("~w[Line~w] OK = ~w, Socket = ~w, Data = ~w~n",[?MODULE, ?LINE, OK, Socket, Data]),
 			parse(<< Buffer/binary, Data/binary >>, State);
 		{Closed, Socket} when Closed =:= element(2, Messages) ->
 			terminate(State, {socket_error, closed, 'The socket has been closed.'});
@@ -349,8 +353,10 @@ parse(Buffer, State=#state{in_state=#ps_body{}}) ->
 after_parse({request, Req=#{streamid := StreamID, method := Method,
 		headers := Headers, version := Version},
 		State0=#state{opts=Opts, buffer=Buffer, streams=Streams0}}) ->
+%%	io:format("~w Line ~w StreamID = ~w, Method = ~w, Headers = ~w, Version = ~w, Opts = ~w, Streams0 = ~w~n",[?MODULE, ?LINE, StreamID, Method, Headers, Version, Opts, Streams0]),
 	try cowboy_stream:init(StreamID, Req, Opts) of
 		{Commands, StreamState} ->
+%%			io:format("~w Line ~w Commands = ~w, StreamState = ~w~n",[?MODULE, ?LINE, Commands, StreamState]),
 			Flow = maps:get(initial_stream_flow_size, Opts, 65535),
 			TE = maps:get(<<"te">>, Headers, undefined),
 			Streams = [#stream{id=StreamID, state=StreamState,
@@ -360,6 +366,7 @@ after_parse({request, Req=#{streamid := StreamID, method := Method,
 				keepalive -> State0#state{streams=Streams, flow=Flow}
 			end,
 			State = set_timeout(State1, idle_timeout),
+%%			io:format("~w Line ~w State = ~w~n, Buffer = ~w, StreamID = ~w, Commands = ~w~n",[?MODULE, ?LINE, State, Buffer, StreamID, Commands]),
 			parse(Buffer, commands(State, StreamID, Commands))
 	catch Class:Exception:Stacktrace ->
 		cowboy:log(cowboy_stream:make_error_log(init,
@@ -432,21 +439,28 @@ parse_request(<< $\s, _/bits >>, State, _) ->
 %% We limit the length of the Request-line to MaxLength to avoid endlessly
 %% reading from the socket and eventually crashing.
 parse_request(Buffer, State=#state{opts=Opts, in_streamid=InStreamID}, EmptyLines) ->
+%%	io:format("Cowhttp --------- 442  Buffer = ~w, Opts = ~w, InStreamID = ~w, EmptyLines = ~w~n",[Buffer, Opts, InStreamID, EmptyLines]),
 	MaxLength = maps:get(max_request_line_length, Opts, 8000),
 	MaxEmptyLines = maps:get(max_empty_lines, Opts, 5),
+%%	io:format("Cowhttp --------- 445 MaxLength = ~w, MaxEmptyLines = ~w~n",[MaxLength, MaxEmptyLines]),
 	case match_eol(Buffer, 0) of
 		nomatch when byte_size(Buffer) > MaxLength ->
+			io:format("555555555555555555555~n",[]),
 			error_terminate(414, State, {connection_error, limit_reached,
 				'The request-line length is larger than configuration allows. (RFC7230 3.1.1)'});
 		nomatch ->
+			io:format("6666666666666666666666~n",[]),
 			{more, State#state{buffer=Buffer, in_state=#ps_request_line{empty_lines=EmptyLines}}};
 		1 when EmptyLines =:= MaxEmptyLines ->
+			io:format("1111111111111~n",[]),
 			error_terminate(400, State, {connection_error, limit_reached,
 				'More empty lines were received than configuration allows. (RFC7230 3.5)'});
 		1 ->
+			io:format("2222222222222222222~n",[]),
 			<< _:16, Rest/bits >> = Buffer,
 			parse_request(Rest, State, EmptyLines + 1);
 		_ ->
+			io:format("33333333333333333~n",[]),
 			case Buffer of
 				%% @todo * is only for server-wide OPTIONS request (RFC7230 5.3.4); tests
 				<< "OPTIONS * ", Rest/bits >> ->
@@ -462,8 +476,11 @@ parse_request(Buffer, State=#state{opts=Opts, in_streamid=InStreamID}, EmptyLine
 					%% @todo Might be worth throwing to get a clean stacktrace.
 					http2_upgrade(State, Buffer);
 				_ ->
-					parse_method(Buffer, State, <<>>,
-						maps:get(max_method_length, Opts, 32))
+					io:format("44444444444444444444~n",[]),
+					A = parse_method(Buffer, State, <<>>,
+						maps:get(max_method_length, Opts, 32)),
+					io:format("---------- 482 --------- A~w ~n",[A]),
+					A
 			end
 	end.
 
@@ -478,6 +495,7 @@ parse_method(_, State, _, 0) ->
 	error_terminate(501, State, {connection_error, limit_reached,
 		'The method name is longer than configuration allows. (RFC7230 3.1.1)'});
 parse_method(<< C, Rest/bits >>, State, SoFar, Remaining) ->
+%%	io:format("parse_method --------- 496 C = ~w~n, Rest = ~w~n",[C, Rest]),
 	case C of
 		$\r -> error_terminate(400, State, {connection_error, protocol_error,
 			'The method name must not be followed with a line break. (RFC7230 3.1.1)'});
@@ -512,6 +530,7 @@ parse_uri_authority(_, State, _, _, 0) ->
 	error_terminate(414, State, {connection_error, limit_reached,
 		'The authority component of the absolute URI is longer than configuration allows. (RFC7230 2.7.1)'});
 parse_uri_authority(<<C, Rest/bits>>, State, Method, SoFar, Remaining) ->
+%%	io:format("parse_method --------- 533 C = ~w~n, Rest = ~w~n",[C, Rest]),
 	case C of
 		$\r ->
 			error_terminate(400, State, {connection_error, protocol_error,
@@ -534,6 +553,7 @@ parse_uri_authority(<<C, Rest/bits>>, State, Method, SoFar, Remaining) ->
 	end.
 
 parse_uri_path(<<C, Rest/bits>>, State, Method, Authority, SoFar) ->
+%%	io:format("parse_uri_path --------- 556 C = ~w~n, Rest = ~w~n",[C, Rest]),
 	case C of
 		$\r -> error_terminate(400, State, {connection_error, protocol_error,
 			'The request-target must not be followed by a line break. (RFC7230 3.1.1)'});
@@ -544,6 +564,7 @@ parse_uri_path(<<C, Rest/bits>>, State, Method, Authority, SoFar) ->
 	end.
 
 parse_uri_query(<<C, Rest/bits>>, State, M, A, P, SoFar) ->
+%%	io:format("parse_uri_query --------- 567 C = ~w~n, Rest = ~w~n",[C, Rest]),
 	case C of
 		$\r -> error_terminate(400, State, {connection_error, protocol_error,
 			'The request-target must not be followed by a line break. (RFC7230 3.1.1)'});
@@ -553,6 +574,7 @@ parse_uri_query(<<C, Rest/bits>>, State, M, A, P, SoFar) ->
 	end.
 
 skip_uri_fragment(<<C, Rest/bits>>, State, M, A, P, Q) ->
+%%	io:format("skip_uri_fragment --------- 577 C = ~w~n, Rest = ~w~n",[C, Rest]),
 	case C of
 		$\r -> error_terminate(400, State, {connection_error, protocol_error,
 			'The request-target must not be followed by a line break. (RFC7230 3.1.1)'});
@@ -575,6 +597,7 @@ parse_version(_, State, _, _, _, _) ->
 		'Unsupported HTTP version. (RFC7230 2.6)'}).
 
 before_parse_headers(Rest, State, M, A, P, Q, V) ->
+%%	io:format("before_parse_headers --------- 600 Rest = ~w~n",[Rest]),
 	parse_header(Rest, State#state{in_state=#ps_header{
 		method=M, authority=A, path=P, qs=Q, version=V}}, #{}).
 
@@ -584,6 +607,7 @@ before_parse_headers(Rest, State, M, A, P, Q, V) ->
 parse_header(Rest, State=#state{in_state=PS}, Headers) when byte_size(Rest) < 2 ->
 	{more, State#state{buffer=Rest, in_state=PS#ps_header{headers=Headers}}};
 parse_header(<< $\r, $\n, Rest/bits >>, S, Headers) ->
+%%	io:format("parse_header --------- 600 Rest = ~w~n",[Rest]),
 	request(Rest, S, Headers);
 parse_header(Buffer, State=#state{opts=Opts, in_state=PS}, Headers) ->
 	MaxHeaders = maps:get(max_headers, Opts, 100),
@@ -704,6 +728,7 @@ horse_clean_value_ws_end() ->
 
 request(Buffer, State=#state{transport=Transport,
 		in_state=PS=#ps_header{authority=Authority, version=Version}}, Headers) ->
+	io:format("request ---------------- 731 Headers = ~w~n",[Headers]),
 	case maps:get(<<"host">>, Headers, undefined) of
 		undefined when Version =:= 'HTTP/1.1' ->
 			%% @todo Might want to not close the connection on this and next one.
@@ -711,6 +736,7 @@ request(Buffer, State=#state{transport=Transport,
 				{stream_error, protocol_error,
 					'HTTP/1.1 requests must include a host header. (RFC7230 5.4)'});
 		undefined ->
+			io:format("request ---------------- 739 Transport = ~w, Buffer = ~w~n",[Transport, Buffer]),
 			request(Buffer, State, Headers, <<>>, default_port(Transport:secure()));
 		%% @todo When CONNECT requests come in we need to ignore the RawHost
 		%% and instead use the Authority as the source of host.
@@ -751,6 +777,7 @@ request(Buffer, State0=#state{ref=Ref, transport=Transport, peer=Peer, sock=Sock
 		proxy_header=ProxyHeader, in_streamid=StreamID, in_state=
 			PS=#ps_header{method=Method, path=Path, qs=Qs, version=Version}},
 		Headers0, Host, Port) ->
+%%	io:format("request ---------------- 780 Headers0 = ~w, Buffer = ~w~n",[Headers0, Buffer]),
 	Scheme = case Transport:secure() of
 		true -> <<"https">>;
 		false -> <<"http">>
@@ -804,6 +831,7 @@ request(Buffer, State0=#state{ref=Ref, transport=Transport, peer=Peer, sock=Sock
 		has_body => HasBody,
 		body_length => BodyLength
 	},
+
 	%% We add the PROXY header information if any.
 	Req = case ProxyHeader of
 		undefined -> Req0;
@@ -1159,6 +1187,7 @@ commands(State=#state{socket=Socket, transport=Transport, streams=Streams, out_s
 commands(State0=#state{ref=Ref, parent=Parent, socket=Socket, transport=Transport,
 		out_state=OutState, opts=Opts, buffer=Buffer, children=Children}, StreamID,
 		[{switch_protocol, Headers, Protocol, InitialState}|_Tail]) ->
+	io:format("switch_protocol ------------ Headers = ~w, Protocol = ~w, InitialState = ~w~n",[Headers, Protocol, InitialState]),
 	%% @todo If there's streams opened after this one, fail instead of 101.
 	State1 = cancel_timeout(State0),
 	%% Before we send the 101 response we need to stop receiving data
@@ -1169,6 +1198,7 @@ commands(State0=#state{ref=Ref, parent=Parent, socket=Socket, transport=Transpor
 	%% to process or skip the body before the upgrade can be completed.
 	State = passive(State1),
 	%% Send a 101 response if necessary, then terminate the stream.
+	io:format("State = ~w~n",[State]),
 	#state{streams=Streams} = case OutState of
 		wait -> info(State, StreamID, {inform, 101, Headers});
 		_ -> State
@@ -1452,8 +1482,10 @@ initiate_closing(State=#state{streams=[_Stream|Streams],
 
 -spec terminate(_, _) -> no_return().
 terminate(undefined, Reason) ->
+	io:format("terminate 1471 ------------- Reason ~w~n",[Reason]),
 	exit({shutdown, Reason});
 terminate(State=#state{streams=Streams, children=Children}, Reason) ->
+	io:format("terminate 1474 ------------- Reason ~w~n",[Reason]),
 	terminate_all_streams(State, Streams, Reason),
 	cowboy_children:terminate(Children),
 	terminate_linger(State),

@@ -1,4 +1,4 @@
-cd E:\git\game_server\script\ebin
+cd G:\github\game_server\script\ebin
 
 set NUM_PROCESSES=102400
 

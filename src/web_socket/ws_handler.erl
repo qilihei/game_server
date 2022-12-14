@@ -34,12 +34,13 @@ websocket_init(State) ->
     ?PRINT("init data  : ~p~n", [State]),
     erlang:send_after(60000, self(), {loop}),
 %%    lib_encryption:init(),
+    erlang:put(socket_status, true),
     erlang:start_timer(10000, self(), {?MODULE,check_status}),
     {[], State#ws_state{sid=self()}}.
 
-websocket_handle({text, Msg}, State) ->
-    ?PRINT("goo data : ~p", [Msg]),
-    {[{text, << "That's what she said! ", Msg/binary >>}], State};
+websocket_handle(<<"text">>, State) ->
+    ?PRINT("goo data : ~p", [text]),
+    {[{text, << "That's what she said! ", <<"777">>/binary >>}], State};
 websocket_handle({binary, Bin}, State) ->
     ?PRINT("binary Bin  : ~p~n", [Bin]),
 %%    lib_packet:handle_data(Bin, State),
@@ -71,8 +72,11 @@ websocket_info({timeout, _TimerRef, {Module,Fun,Arg}}, State) ->
     {[], State};
 websocket_info(stop, State) ->
     {stop, State};
+websocket_info(<<"text">>, State) ->
+    ?PRINT("goo data : ~p", [text]),
+    {[{text, << "That's what she said! ", <<"777">>/binary >>}], State};
 websocket_info(_Info, State) ->
-    ?PRINT("unknow msg : ~p", [_Info]),
+    ?PRINT("unknow msg : ~p~n", [_Info]),
     {[], State}.
 
 %%terminate(_Reason, _Req, State) ->

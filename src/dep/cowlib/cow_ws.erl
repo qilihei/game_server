@@ -352,6 +352,8 @@ parse_response_permessage_deflate_params(_, _, _, _, _) ->
 	-> error | more | {frame_type(), frag_state(), rsv(), non_neg_integer(), mask_key(), binary()}.
 %% RSV bits MUST be 0 unless an extension is negotiated
 %% that defines meanings for non-zero values.
+%%<<0,49,255>>
+parse_header(<< A, B, C, Data/bits >>, _Extensions, _) when A == $5, B == $2, C == $0 -> {client_msg, Data};
 parse_header(<< _:1, Rsv:3, _/bits >>, Extensions, _) when Extensions =:= #{}, Rsv =/= 0 -> error;
 %% Last 2 RSV bits MUST be 0 if deflate-frame extension is used.
 parse_header(<< _:2, 1:1, _/bits >>, #{deflate := _}, _) -> error;

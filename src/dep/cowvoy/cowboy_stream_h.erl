@@ -46,6 +46,7 @@ init(StreamID, Req=#{ref := Ref}, Opts) ->
 	Env = maps:get(env, Opts, #{}),
 	Middlewares = maps:get(middlewares, Opts, [cowboy_router, cowboy_handler]),
 	Shutdown = maps:get(shutdown_timeout, Opts, 5000),
+	io:format("cowboy_stream_h ----------  Req = ~w, Env = ~w, Middlewares = ~w~n",[Req, Env, Middlewares]),
 	Pid = proc_lib:spawn_link(?MODULE, request_process, [Req, Env, Middlewares]),
 	Expect = expect(Req),
 	{Commands, Next} = cowboy_stream:init(StreamID, Req, Opts),

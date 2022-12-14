@@ -165,8 +165,11 @@ execute(Req=#{host := Host, path := Path}, Env=#{dispatch := Dispatch0}) ->
 		{persistent_term, Key} -> persistent_term:get(Key);
 		_ -> Dispatch0
 	end,
+%%	io:format("coyboy_router ------- 37 Dispatch = ~w, Host = ~w, Path = ~w~n",[Dispatch, Host, Path]),
 	case match(Dispatch, Host, Path) of
 		{ok, Handler, HandlerOpts, Bindings, HostInfo, PathInfo} ->
+%%			io:format("coyboy_router -+ 11111111111111111~n",[]),
+%%			io:format("coyboy_router -+ Handler = ~w, HandlerOpts = ~w, Bindings = ~w, HostInfo = ~w, PathInfo = ~w~n",[Handler, HandlerOpts, Bindings, HostInfo, PathInfo]),
 			{ok, Req#{
 				host_info => HostInfo,
 				path_info => PathInfo,
@@ -176,12 +179,16 @@ execute(Req=#{host := Host, path := Path}, Env=#{dispatch := Dispatch0}) ->
 				handler_opts => HandlerOpts
 			}};
 		{error, notfound, host} ->
+			io:format("coyboy_router -+ 222222222222222222222~n",[]),
 			{stop, cowboy_req:reply(400, Req)};
 		{error, badrequest, path} ->
+			io:format("coyboy_router -+ 333333333333333~n",[]),
 			{stop, cowboy_req:reply(400, Req)};
 		{error, notfound, path} ->
+			io:format("coyboy_router -+ 4444444444444444~n",[]),
 			{stop, cowboy_req:reply(404, Req)}
 	end.
+
 
 %% Internal.
 

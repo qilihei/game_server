@@ -107,11 +107,13 @@ is_upgrade_request(#{version := 'HTTP/2', method := <<"CONNECT">>, protocol := P
 	<<"websocket">> =:= cowboy_bstr:to_lower(Protocol);
 is_upgrade_request(Req=#{version := 'HTTP/1.1', method := <<"GET">>}) ->
 	ConnTokens = cowboy_req:parse_header(<<"connection">>, Req, []),
+	io:format("ConnTokens = ~w~n",[ConnTokens]),
 	case lists:member(<<"upgrade">>, ConnTokens) of
 		false ->
 			false;
 		true ->
 			UpgradeTokens = cowboy_req:parse_header(<<"upgrade">>, Req),
+			io:format("UpgradeTokens = ~w~n",[UpgradeTokens]),
 			lists:member(<<"websocket">>, UpgradeTokens)
 	end;
 is_upgrade_request(_) ->
@@ -159,11 +161,13 @@ upgrade(Req0=#{version := Version}, Env, Handler, HandlerState, Opts) ->
 	end.
 
 websocket_upgrade(State, Req=#{version := Version}) ->
+	io:format("websocket_upgrade ---------- Req = ~w~n",[Req]),
 	case is_upgrade_request(Req) of
 		false ->
 			{error, upgrade_required};
 		true when Version =:= 'HTTP/1.1' ->
 			Key = cowboy_req:header(<<"sec-websocket-key">>, Req),
+			io:format("Key = ~w~n",[Key]),
 			false = Key =:= undefined,
 			websocket_version(State#state{key=Key}, Req);
 		true ->
@@ -172,6 +176,7 @@ websocket_upgrade(State, Req=#{version := Version}) ->
 
 websocket_version(State, Req) ->
 	WsVersion = cowboy_req:parse_header(<<"sec-websocket-version">>, Req),
+	io:format("WsVersion = ~w~n",[WsVersion]),
 	case WsVersion of
 		7 -> ok;
 		8 -> ok;
@@ -187,8 +192,10 @@ websocket_extensions(State=#state{opts=Opts}, Req) ->
 	%% * compress nothing auto (but still enabled it)
 	%% * disable compression
 	Compress = maps:get(compress, Opts, false),
+	io:format("Compress = ~w~n",[Compress]),
 	case {Compress, cowboy_req:parse_header(<<"sec-websocket-extensions">>, Req)} of
 		{true, Extensions} when Extensions =/= undefined ->
+			io:format("111111111111 Extensions = ~w~n",[Extensions]),
 			websocket_extensions(State, Req, Extensions, []);
 		_ ->
 			{ok, State, Req}
@@ -207,6 +214,7 @@ websocket_extensions(State=#state{opts=Opts, extensions=Extensions},
 		'HTTP/1.1' -> DeflateOpts0#{owner => Pid};
 		_ -> DeflateOpts0
 	end,
+	io:format("DeflateOpts = ~w~n",[DeflateOpts]),
 	try cow_ws:negotiate_permessage_deflate(Params, Extensions, DeflateOpts) of
 		{ok, RespExt, Extensions2} ->
 			websocket_extensions(State#state{extensions=Extensions2},
@@ -250,6 +258,7 @@ websocket_handshake(State=#state{key=Key},
 		<<"upgrade">> => <<"websocket">>,
 		<<"sec-websocket-accept">> => Challenge
 	}, Req),
+	io:format("websocket_handshake Headers = ~w~n, HandlerState = ~w~n",[Headers, HandlerState]),
 	Pid ! {{Pid, StreamID}, {switch_protocol, Headers, ?MODULE, {State, HandlerState}}},
 	{ok, Req, Env};
 %% For HTTP/2 we do not let the process die, we instead keep it
@@ -386,22 +395,28 @@ loop_timeout(State=#state{opts=Opts, timeout_ref=PrevRef}) ->
 -spec loop(#state{}, any(), parse_state()) -> no_return().
 loop(State=#state{parent=Parent, socket=Socket, messages=Messages,
 		timeout_ref=TRef}, HandlerState, ParseState) ->
+	io:format("loop ----------  Messages = ~w, Socket = ~w, HandlerState = ~w, ParseState = ~w~n",[Messages, Socket, HandlerState, ParseState]),
 	receive
 		%% Socket messages. (HTTP/1.1)
 		{OK, Socket, Data} when OK =:= element(1, Messages) ->
+			io:format("11111111111 Data = ~w~n",[Data]),
 			State2 = loop_timeout(State),
 			parse(State2, HandlerState, ParseState, Data);
 		{Closed, Socket} when Closed =:= element(2, Messages) ->
+			io:format("2222222222222222222~n",[]),
 			terminate(State, HandlerState, {error, closed});
 		{Error, Socket, Reason} when Error =:= element(3, Messages) ->
+			io:format("33333333333333333333~n",[]),
 			terminate(State, HandlerState, {error, Reason});
 		{Passive, Socket} when Passive =:= element(4, Messages);
 				%% Hardcoded for compatibility with Ranch 1.x.
 				Passive =:= tcp_passive; Passive =:= ssl_passive ->
+			io:format("4444444444444444444444444~n",[]),
 			setopts_active(State),
 			loop(State, HandlerState, ParseState);
 		%% Body reading messages. (HTTP/2)
 		{request_body, _Ref, nofin, Data} ->
+			io:format("5555555555555555555~n",[]),
 			maybe_read_body(State),
 			State2 = loop_timeout(State),
 			parse(State2, HandlerState, ParseState, Data);
@@ -409,26 +424,33 @@ loop(State=#state{parent=Parent, socket=Socket, messages=Messages,
 		%% but not before we finish processing frames. We probably should have
 		%% a check in before_loop to let us stop looping if a flag is set.
 		{request_body, _Ref, fin, _, Data} ->
+			io:format("6666666666666666~n",[]),
 			maybe_read_body(State),
 			State2 = loop_timeout(State),
 			parse(State2, HandlerState, ParseState, Data);
 		%% Timeouts.
 		{timeout, TRef, ?MODULE} ->
+			io:format("7777777777777777777~n",[]),
 			websocket_close(State, HandlerState, timeout);
 		{timeout, OlderTRef, ?MODULE} when is_reference(OlderTRef) ->
+			io:format("888888888888888888888~n",[]),
 			before_loop(State, HandlerState, ParseState);
 		%% System messages.
 		{'EXIT', Parent, Reason} ->
+			io:format("999999999999999999~n",[]),
 			%% @todo We should exit gracefully.
 			exit(Reason);
 		{system, From, Request} ->
+			io:format("10101010101010~n",[]),
 			sys:handle_system_msg(Request, From, Parent, ?MODULE, [],
 				{State, HandlerState, ParseState});
 		%% Calls from supervisor module.
 		{'$gen_call', From, Call} ->
+			io:format("121212121212~n",[]),
 			cowboy_children:handle_supervisor_call(Call, From, [], ?MODULE),
 			before_loop(State, HandlerState, ParseState);
 		Message ->
+			io:format("131313131313131 Message = ~w ~n",[Message]),
 			handler_call(State, HandlerState, ParseState,
 				websocket_info, Message, fun before_loop/3)
 	end.
@@ -442,20 +464,30 @@ parse(State, HandlerState, PS=#ps_payload{buffer=Buffer}, Data) ->
 
 parse_header(State=#state{opts=Opts, frag_state=FragState, extensions=Extensions},
 		HandlerState, ParseState=#ps_header{buffer=Data}) ->
+	io:format("parse_header Extensions = ~w, FragState = ~w, Data = ~w ~n",[Extensions, FragState, Data]),
 	MaxFrameSize = maps:get(max_frame_size, Opts, infinity),
 	case cow_ws:parse_header(Data, Extensions, FragState) of
 		%% All frames sent from the client to the server are masked.
 		{_, _, _, _, undefined, _} ->
+			io:format("parse_header 11111111111111111111 ~n",[]),
 			websocket_close(State, HandlerState, {error, badframe});
 		{_, _, _, Len, _, _} when Len > MaxFrameSize ->
 			websocket_close(State, HandlerState, {error, badsize});
 		{Type, FragState2, Rsv, Len, MaskKey, Rest} ->
+			io:format("parse_header 2222222222222222 ~n",[]),
 			parse_payload(State#state{frag_state=FragState2}, HandlerState,
 				#ps_payload{type=Type, len=Len, mask_key=MaskKey, rsv=Rsv}, Rest);
 		more ->
 			before_loop(State, HandlerState, ParseState);
 		error ->
-			websocket_close(State, HandlerState, {error, badframe})
+			io:format("parse_header 333333333333 ~n",[]),
+			websocket_close(State, HandlerState, {error, badframe});
+		{client_msg, Data1} ->
+			io:format("parse_header client_msg ------------- Data1= ~w ~n",[Data1]),
+			#state{timeout_ref = Ref} = State,
+			erlang:cancel_timer(Ref),
+			handler_call(State#state{timeout_ref = undefined}, HandlerState, ParseState,
+				websocket_info, Data1, fun before_loop/3)
 	end.
 
 parse_payload(State=#state{frag_state=FragState, utf8_state=Incomplete, extensions=Extensions},
@@ -523,13 +555,14 @@ dispatch_frame(State=#state{opts=Opts, frag_state=FragState, frag_buffer=SoFar},
 
 handler_call(State=#state{handler=Handler}, HandlerState,
 		ParseState, Callback, Message, NextState) ->
+	io:format("Handler = ~w, HandlerState = ~w, ParseState = ~w, Callback = ~w, Message = ~w, NextState = ~w~n",[Handler, HandlerState, ParseState, Callback, Message, NextState]),
 	try case Callback of
 		websocket_init -> Handler:websocket_init(HandlerState);
 		_ -> Handler:Callback(Message, HandlerState)
 	end of
 		{Commands, HandlerState2} when is_list(Commands) ->
 			handler_call_result(State,
-				HandlerState2, ParseState, NextState, Commands);
+				HandlerState2, ParseState#ps_header{buffer = <<>>}, NextState, Commands);
 		{Commands, HandlerState2, hibernate} when is_list(Commands) ->
 			handler_call_result(State#state{hibernate=true},
 				HandlerState2, ParseState, NextState, Commands);
